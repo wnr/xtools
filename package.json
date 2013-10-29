@@ -1,0 +1,28 @@
+{
+  "name": "xtools",
+  "version": "0.0.0",
+  "description": "Cross platform dev tools",
+  "directories": {
+    "test": "test",
+    "lib": "lib"
+  },
+  "dependencies": {
+    "chalk": "~0.3.0"
+  },
+  "devDependencies": {
+    "mocha": "~1.13.0",
+    "sandboxed-module": "~0.3.0"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/wnr/xtools.git"
+  },
+  "author": "Lucas Wiener <lucas@wiener.se>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/wnr/xtools/issues"
+  }
+}
