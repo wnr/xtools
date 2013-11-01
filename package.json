@@ -11,10 +11,11 @@
   },
   "devDependencies": {
     "mocha": "~1.13.0",
-    "sandboxed-module": "~0.3.0"
+    "sandboxed-module": "~0.3.0",
+    "expect.js": "~0.2.0"
   },
   "scripts": {
-    "test": "mocha"
+    "test": "mocha --reporter spec -r expect.js"
   },
   "repository": {
     "type": "git",
