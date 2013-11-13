@@ -161,7 +161,6 @@ describe('filesystem', function() {
         makeStatObject(this.p, 'link', 'link')
       ];
       var actual = this.fs.expand('~/noes/../test/./foo');
-      debugger;
       testStatObjects(actual, expected);
     });
   });
