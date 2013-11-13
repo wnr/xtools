@@ -2,6 +2,16 @@ var utils = require('../lib/utils.js');
 var expect = require('expect.js');
 
 describe('utils', function() {
+  describe('isSet', function() {
+    it('should return false only for undefined and null', function() {
+      expect(utils.isSet(undefined)).to.be(false);
+      expect(utils.isSet(null)).to.be(false);
+      expect(utils.isSet('undefined')).to.be(true);
+      expect(utils.isSet(false)).to.be(true);
+      expect(utils.isSet(131)).to.be(true);
+    });
+  });
+
   describe('flatten', function() {
     before(function() {
       //1
