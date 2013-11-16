@@ -34,6 +34,13 @@ describe('find', function() {
           expand: fs.expand,
           prepare: fs.prepare
         }
+      },
+      globals: {
+        process: {
+          cwd: function() {
+            return '/test/foo/.git';
+          }
+        }
       }
     });
   });
@@ -75,6 +82,15 @@ describe('find', function() {
   });
 
   it('should default to current working directory if no path is given', function() {
-    expect(false).to.equal(true);
+    var expected = [
+      '/test/foo/.git',
+      '/test/foo/.git/test',
+      '/test/foo/.git/config',
+      '/test/foo/.git/config/deepest',
+      '/test/foo/.git/config/dfile',
+      '/test/foo/.git/hooks'
+    ];
+    var actual = this.find();
+    expect(actual).to.eql(expected);
   });
 });
