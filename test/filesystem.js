@@ -7,6 +7,8 @@ var sm = require('sandboxed-module');
 
 var FILE = '../lib/filesystem.js';
 
+var _ = require('lodash');
+
 describe('filesystem', function() {
   describe('pathify', function() {
     it('should add trailing separator when needed', function() {
@@ -113,7 +115,7 @@ describe('filesystem', function() {
                 throw new Error('Unable to find ' + filename);
               }
 
-              return utils.copy(object);
+              return _.cloneDeep(object);
             },
             lstatSync: function(filename) {
               var object = output.lstat[filename];
@@ -123,7 +125,7 @@ describe('filesystem', function() {
                 throw new Error('Unable to find ' + filename);
               }
 
-              return utils.copy(object);
+              return _.cloneDeep(object);
             }
           }
         }
@@ -140,7 +142,7 @@ describe('filesystem', function() {
       var actual = this.fs.expand('~/noes/../test/./foo', {
         recurse: false
       });
-      datagen.testFileObject(actual, utils.copy(expected));
+      datagen.testFileObject(actual, expected);
     });
 
     it('should be able to expand directories recursively', function() {
@@ -160,7 +162,7 @@ describe('filesystem', function() {
         ])
       ];
       var actual = this.fs.expand('~/noes/../test/./foo');
-      datagen.testFileObject(actual, utils.copy(expected));
+      datagen.testFileObject(actual, expected);
     });
   });
 });

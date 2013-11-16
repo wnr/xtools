@@ -20,7 +20,7 @@ function generateFileStructure(structure) {
     output.files[data[0]] = makeFileObject(p.dirname(data[0]) + p.sep, p.basename(data[0]), data[1]);
 
     if(output.lstat[data[0]].isDirectory()) {
-      var files = utils.unique(chunk.match(new RegExp('(' + data[0] + ')/[^' + p.sep + '\\s]+', 'g')) || []).map(function (element) {
+      var files = _.unique(chunk.match(new RegExp('(' + data[0] + ')/[^' + p.sep + '\\s]+', 'g')) || []).map(function (element) {
         return _.last(element.split(p.sep));
       });
       output.readdir[data[0]] = files;

@@ -121,15 +121,4 @@ describe('utils', function() {
       }
     });
   });
-
-  describe('unique', function() {
-    it('should return an array of unique elements', function() {
-      {
-        var array = [1,2,21,1,25,21,51,5,16,22,5,412,2,3,1,2,3,4,4];
-        var expected = [1,2,21,25,51,5,16,22,412,3,4];
-        var actual = utils.unique(array);
-        expect(expected).to.eql(actual);
-      }
-    });
-  });
 });
