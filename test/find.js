@@ -38,12 +38,6 @@ describe('find', function() {
     });
   });
 
-  it('should throw error if no path is specified', function() {
-    expect(function() {
-      find();
-    }).to.throwError();
-  });
-
   it('should have the root dir as result on empty dir', function() {
     var expected = [
       '/test/foo/.git/hooks'
@@ -78,5 +72,9 @@ describe('find', function() {
     var actual = this.find('/test/foo');
 
     expect(actual).to.eql(expected);
+  });
+
+  it('should default to current working directory if no path is given', function() {
+    expect(false).to.equal(true);
   });
 });
