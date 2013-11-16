@@ -82,7 +82,7 @@ describe('filesystem', function() {
       expect(fs.prepare('~')).to.equal(process.env.HOME);
       expect(fs.prepare('/test/~/foo')).to.equal(path.normalize('/test/~/foo'));
       expect(fs.prepare('/test/../foo')).to.equal(path.normalize('/foo'));
-      expect(fs.prepare('//foo/./../foo//test/')).to.equal(path.normalize('/foo/test/'));
+      expect(fs.prepare('//foo/./../foo//test/')).to.equal(path.normalize('/foo/test'));
     });
   });
 
@@ -91,7 +91,7 @@ describe('filesystem', function() {
       var self = this;
       this.path = require('path');
       this.p = process.env.HOME + '/test/foo/';
-      var output = datagen.generateFileStructure([
+      var fileStructure = new datagen.FileStructure([
         process.env.HOME + '/test/foo dir',
         process.env.HOME + '/test/foo/LICENSE file',
         process.env.HOME + '/test/foo/link link',
@@ -107,26 +107,8 @@ describe('filesystem', function() {
       this.fs = sm.require(FILE, {
         requires: {
           'fs': {
-            readdirSync: function(filename) {
-              var object = output.readdir[filename];
-
-              if(!object) {
-                //TODO: Throw right error.
-                throw new Error('Unable to find ' + filename);
-              }
-
-              return _.cloneDeep(object);
-            },
-            lstatSync: function(filename) {
-              var object = output.lstat[filename];
-
-              if(!object) {
-                //TODO: Throw right error.
-                throw new Error('Unable to find ' + filename);
-              }
-
-              return _.cloneDeep(object);
-            }
+            readdirSync: fileStructure.readdirSync.bind(fileStructure),
+            lstatSync: fileStructure.lstatSync.bind(fileStructure)
           }
         }
       });
