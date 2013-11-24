@@ -86,6 +86,129 @@ describe('filesystem', function() {
     });
   });
 
+  describe('File', function() {
+    it('should create file objects by invoking lstat', function() {
+        debugger;
+
+      var fileStructure = new datagen.FileStructure([
+        process.env.HOME + '/test/foo dir',
+        process.env.HOME + '/test/foo/LICENSE file',
+        process.env.HOME + '/test/foo/link link',
+      ]);
+      var fs = sm.require(FILE, {
+        requires: {
+          'fs': {
+            lstatSync: fileStructure.lstatSync.bind(fileStructure)
+          }
+        }
+      });
+
+      {
+        var actual = new fs.File(process.env.HOME + '/test/foo');
+        expect(actual).to.be.an(fs.File);
+        expect(actual.filename).to.equal(fs.prepare(process.env.HOME + '/test/foo'));
+        expect(actual.basename).to.equal('foo');
+        expect(actual.path).to.equal(process.env.HOME + '/test/');
+        expect(actual.is).to.be.an('object');
+        expect(actual.is.file).to.equal(false);
+        expect(actual.is.link).to.equal(false);
+        expect(actual.is.dir).to.equal(true);
+      }
+      {
+        var actual = new fs.File('~/test/foo/fake/..//LICENSE');
+        expect(actual).to.be.an(fs.File);
+        expect(actual.filename).to.equal(fs.prepare(process.env.HOME + '/test/foo/LICENSE'));
+        expect(actual.basename).to.equal('LICENSE');
+        expect(actual.path).to.equal(process.env.HOME + '/test/foo/');
+        expect(actual.is).to.be.an('object');
+        expect(actual.is.file).to.equal(true);
+        expect(actual.is.link).to.equal(false);
+        expect(actual.is.dir).to.equal(false);
+      }
+      {
+        var actual = new fs.File('~/test/foo/fake/../y/../link');
+        expect(actual).to.be.an(fs.File);
+        expect(actual.filename).to.equal(fs.prepare(process.env.HOME + '/test/foo/link'));
+        expect(actual.basename).to.equal('link');
+        expect(actual.path).to.equal(process.env.HOME + '/test/foo/');
+        expect(actual.is).to.be.an('object');
+        expect(actual.is.file).to.equal(false);
+        expect(actual.is.link).to.equal(true);
+        expect(actual.is.dir).to.equal(false);
+      }
+    });
+
+    it('should init file object by stats object', function() {
+      var fs = require(FILE);
+
+      {
+        var stats = datagen.makeStatObject('file');
+        var actual = new fs.File('/some/dir/~/conf', stats);
+        expect(actual).to.be.an(fs.File);
+        expect(actual.filename).to.equal('/some/dir/~/conf');
+        expect(actual.basename).to.equal('conf');
+        expect(actual.path).to.equal('/some/dir/~/');
+        expect(actual.is).to.be.an('object');
+        expect(actual.is.file).to.equal(true);
+        expect(actual.is.link).to.equal(false);
+        expect(actual.is.dir).to.equal(false);
+      }
+      {
+        var stats = datagen.makeStatObject('link');
+        var actual = new fs.File('/some/dir/~/link', stats);
+        expect(actual).to.be.an(fs.File);
+        expect(actual.filename).to.equal('/some/dir/~/link');
+        expect(actual.basename).to.equal('link');
+        expect(actual.path).to.equal('/some/dir/~/');
+        expect(actual.is).to.be.an('object');
+        expect(actual.is.file).to.equal(false);
+        expect(actual.is.link).to.equal(true);
+        expect(actual.is.dir).to.equal(false);
+      }
+    });
+
+    it('should create copy when passed another File object', function() {
+      var fs = require(FILE);
+      {
+        var stats = datagen.makeStatObject('dir');
+        var original = new fs.File('/a/dir/something', stats);
+        var copy = new fs.File(original);
+        expect(copy).to.be.an(fs.File);
+        expect(copy.filename).to.equal('/a/dir/something');
+        expect(copy.basename).to.equal('something');
+        expect(copy.path).to.equal('/a/dir/');
+        expect(copy.is).to.be.an('object');
+        expect(copy.is.file).to.equal(false);
+        expect(copy.is.link).to.equal(false);
+        expect(copy.is.dir).to.equal(true);
+
+        expect(copy == original).to.equal(false);
+        expect(copy.is == original.is).to.equal(false);
+
+        delete original.is.dir;
+        expect(copy.is.dir).to.equal(true);
+
+        delete original.is;
+        expect(copy.is).to.be.an('object');
+      }
+    });
+
+    it('should init with files array if present and directory', function() {
+      var fs = require(FILE);
+      {
+        var stats = datagen.makeStatObject('file');
+        var actual = new fs.File('foo', stats, [true]);
+        expect(actual.files).to.be(undefined);
+      }
+      {
+        var stats = datagen.makeStatObject('dir');
+        var files = ['file1', 'dir2'];
+        var actual = new fs.File('foo', stats, files);
+        expect(actual.files).to.equal(files);
+      }
+    });
+  });
+
   describe('expand', function() {
     before(function() {
       var self = this;
@@ -116,10 +239,10 @@ describe('filesystem', function() {
 
     it('should list files in a directory with valid file objects', function() {
       var expected = [
-        datagen.makeFileObject(this.p, 'LICENSE', 'file'),
-        datagen.makeFileObject(this.p, 'link', 'link'),
-        datagen.makeFileObject(this.p, '.git', 'dir'),
-        datagen.makeFileObject(this.p, 'node_modules', 'dir'),
+        new this.fs.File(this.p + '/LICENSE', datagen.makeStatObject('file')),
+        new this.fs.File(this.p + '/link', datagen.makeStatObject('link')),
+        new this.fs.File(this.p + '/.git', datagen.makeStatObject('dir')),
+        new this.fs.File(this.p + '/node_modules', datagen.makeStatObject('dir')),
       ];
       var actual = this.fs.expand('~/noes/../test/./foo', {
         recurse: false
@@ -129,21 +252,37 @@ describe('filesystem', function() {
 
     it('should be able to expand directories recursively', function() {
       var expected = [
-        datagen.makeFileObject(this.p, 'LICENSE', 'file'),
-        datagen.makeFileObject(this.p, 'link', 'link'),
-        datagen.makeFileObject(this.p, '.git', 'dir', [
-          datagen.makeFileObject(this.p + '.git/', 'test', 'file'),
-          datagen.makeFileObject(this.p + '.git/', 'config', 'dir', [
-            datagen.makeFileObject(this.p + '.git/config/', 'deepest', 'link'),
-            datagen.makeFileObject(this.p + '.git/config/', 'dfile', 'file')
+        new this.fs.File(this.p + '/LICENSE', datagen.makeStatObject('file')),
+        new this.fs.File(this.p + '/link', datagen.makeStatObject('link')),
+        new this.fs.File(this.p + '/.git', datagen.makeStatObject('dir'), [
+          new this.fs.File(this.p + '/.git/test', datagen.makeStatObject('file')),
+          new this.fs.File(this.p + '/.git/config', datagen.makeStatObject('dir'), [
+            new this.fs.File(this.p + '/.git/config/deepest', datagen.makeStatObject('link')),
+            new this.fs.File(this.p + '/.git/config/dfile', datagen.makeStatObject('file'))
           ]),
-          datagen.makeFileObject(this.p + '.git/', 'hooks', 'dir', [])
+          new this.fs.File(this.p + '/.git/hooks', datagen.makeStatObject('dir'))
         ]),
-        datagen.makeFileObject(this.p, 'node_modules', 'dir', [
-          datagen.makeFileObject(this.p + 'node_modules/', 'test', 'file')
+        new this.fs.File(this.p + '/node_modules', datagen.makeStatObject('dir'), [
+          new this.fs.File(this.p + '/node_modules/test', datagen.makeStatObject('file'))
         ])
       ];
+
       var actual = this.fs.expand('~/noes/../test/./foo');
+      datagen.testFileObject(actual, expected);
+    });
+
+    it('should be keeping root dir if keepRoot is set to true', function() {
+      var expected = [
+        new this.fs.File(this.p + '/.git', datagen.makeStatObject('dir'), [
+          new this.fs.File(this.p + '/.git/test', datagen.makeStatObject('file')),
+          new this.fs.File(this.p + '/.git/config', datagen.makeStatObject('dir'), [
+            new this.fs.File(this.p + '/.git/config/deepest', datagen.makeStatObject('link')),
+            new this.fs.File(this.p + '.git/config/dfile', datagen.makeStatObject('file'))
+          ]),
+          new this.fs.File(this.p + '.git/hooks', datagen.makeStatObject('dir'))
+        ])
+      ];
+      var actual = this.fs.expand(this.p + '/.git', { keepRoot: true });
       datagen.testFileObject(actual, expected);
     });
   });

@@ -4,6 +4,16 @@ var _ = require('lodash');
 var expect = require('expect.js');
 var sm = require('sandboxed-module');
 
+_.mixin({
+  'cloneDeepWithProto': _.partialRight(_.cloneDeep, function (source) {
+    if (_.isObject(source)) {
+      var result = _.cloneDeep(source);
+      result.__proto__ = _.cloneDeep(source.__proto__);
+      return result;
+    }
+  })
+});
+
 exports.FileStructure = FileStructure;
 exports.generateFileStructure = generateFileStructure;
 exports.makeStatObject = makeStatObject;
@@ -22,7 +32,7 @@ FileStructure.prototype.readdirSync = function(filename) {
     throw new Error('Unable to find ' + filename);
   }
 
-  return _.cloneDeep(object);
+  return _.cloneDeepWithProto(object);
 };
 
 FileStructure.prototype.lstatSync = function(filename) {
@@ -33,7 +43,7 @@ FileStructure.prototype.lstatSync = function(filename) {
     throw new Error('Unable to find ' + filename);
   }
 
-  return _.cloneDeep(object);
+  return _.cloneDeepWithProto(object);
 };
 
 function generateFileStructure(structure) {
@@ -61,6 +71,7 @@ function generateFileStructure(structure) {
   return output;
 };
 
+//TODO: Since lstat sets __proto__ functions, read more about how they are done and make the functions here also __proto__.
 function makeStatObject(type) {
   type = type || 'file';
 
@@ -79,34 +90,37 @@ function makeStatObject(type) {
     mtime: 'Wed Oct 30 2013 00: 54: 18 GMT + 0100(CET)',
     ctime: 'Wed Oct 30 2013 00: 54: 18 GMT + 0100(CET)'
   };
+
+  base.__proto__ = {};
+
   if (type === 'dir') {
-    base.isDirectory = function() {
+    base.__proto__.isDirectory = function() {
       return true;
     };
-    base.isFile = function() {
+    base.__proto__.isFile = function() {
       return false;
     };
-    base.isSymbolicLink = function() {
+    base.__proto__.isSymbolicLink = function() {
       return false;
     };
   } else if (type === 'link') {
-    base.isDirectory = function() {
+    base.__proto__.isDirectory = function() {
       return false;
     };
-    base.isFile = function() {
+    base.__proto__.isFile = function() {
       return false;
     };
-    base.isSymbolicLink = function() {
+    base.__proto__.isSymbolicLink = function() {
       return true;
     }
   } else if (type === 'file') {
-    base.isDirectory = function() {
+    base.__proto__.isDirectory = function() {
       return false;
     };
-    base.isFile = function() {
-      return false;
+    base.__proto__.isFile = function() {
+      return true;
     };
-    base.isSymbolicLink = function() {
+    base.__proto__.isSymbolicLink = function() {
       return false;
     }
   } else {
@@ -132,25 +146,16 @@ function makeFileObject(path, file, type, files) {
   return base;
 }
 
+//TODO: How does there function tests work with new __proto__ functions.
 function testFileObject(actuals, expected) {
   expect(actuals).to.have.length(expected.length);
 
   for (var i = 0; i < actuals.length; i++) {
-    expect(actuals[i].isDirectory()).to.equal(expected[i].isDirectory());
-    expect(actuals[i].isFile()).to.equal(expected[i].isFile());
-    expect(actuals[i].isSymbolicLink()).to.equal(expected[i].isSymbolicLink());
+    debugger;
+    expect(_.isEqual(actuals[i], expected[i])).to.equal(true);
 
-    //Validate the files field (if present) and then delete it.
     if (expected[i].files) {
       testFileObject(actuals[i].files, expected[i].files);
-      delete actuals[i].files && delete expected[i].files;
     }
-
-    //Since expect.eql doesnt work with functions: delete them.
-    delete actuals[i].isDirectory && delete expected[i].isDirectory;
-    delete actuals[i].isFile && delete expected[i].isFile;
-    delete actuals[i].isSymbolicLink && delete expected[i].isSymbolicLink;
-
-    expect(actuals[i]).to.eql(expected[i]);
   }
 }
