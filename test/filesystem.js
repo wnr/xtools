@@ -3,7 +3,7 @@ var utils = require('../lib/utils.js');
 
 var datagen = require('./datagen.js');
 
-var sm = require('sandboxed-module');
+var rewire = require('rewire');
 
 var FILE = '../lib/filesystem.js';
 
@@ -13,11 +13,11 @@ describe('filesystem', function() {
   describe('pathify', function() {
     it('should add trailing separator when needed', function() {
       function test(sep) {
-        var fs = sm.require(FILE, {
-          requires: {
-            'path': {
-              sep: sep
-            }
+        var fs = rewire(FILE);
+
+        fs.__set__({
+          p: {
+            sep: sep
           }
         });
 
@@ -42,16 +42,16 @@ describe('filesystem', function() {
   describe('getPath', function() {
     it('should return the path of the filename with trailing separator', function() {
       function test(sep) {
-        var fs = sm.require(FILE, {
-          requires: {
-            'path': {
-              sep: sep,
-              dirname: function(filename) {
-                var path = require('path');
-                var p = path.dirname(filename.replace(new RegExp('\\' + sep, 'g'), path.sep));
-                var r = new RegExp('\\' + path.sep, 'g');
-                return p.replace(r, sep);
-              }
+        var fs = rewire(FILE);
+
+        fs.__set__({
+          p: {
+            sep: sep,
+            dirname: function(filename) {
+              var path = require('path');
+              var p = path.dirname(filename.replace(new RegExp('\\' + sep, 'g'), path.sep));
+              var r = new RegExp('\\' + path.sep, 'g');
+              return p.replace(r, sep);
             }
           }
         });
@@ -87,19 +87,44 @@ describe('filesystem', function() {
   });
 
   describe('File', function() {
-    it('should create file objects by invoking lstat', function() {
-        debugger;
+    before(function() {
+      this.testCopy = function test(original, copy) {
+        var fs = require(FILE);
 
+        expect(copy).to.be.a(fs.File);
+        expect(copy.filename).to.equal(original.filename);
+        expect(copy.basename).to.equal(original.basename);
+        expect(copy.path).to.equal(original.path);
+        expect(copy.is).to.be.an('object');
+        expect(copy.is.file).to.equal(original.is.file);
+        expect(copy.is.link).to.equal(original.is.link);
+        expect(copy.is.dir).to.equal(original.is.dir);
+
+        expect(copy == original).to.equal(false);
+        expect(copy.is == original.is).to.equal(false);
+
+        var old = copy.is.dir;
+        delete original.is.dir;
+        expect(copy.is.dir).to.equal(old);
+
+        delete original.is;
+        expect(copy.is).to.be.an('object');
+
+        expect(original.files).to.eql(copy.files);
+      };
+    });
+
+    it('should create file objects by invoking lstat', function() {
       var fileStructure = new datagen.FileStructure([
         process.env.HOME + '/test/foo dir',
         process.env.HOME + '/test/foo/LICENSE file',
         process.env.HOME + '/test/foo/link link',
       ]);
-      var fs = sm.require(FILE, {
-        requires: {
-          'fs': {
-            lstatSync: fileStructure.lstatSync.bind(fileStructure)
-          }
+      var fs = rewire(FILE); 
+
+      fs.__set__({
+        fs: {
+          lstatSync: fileStructure.lstatSync.bind(fileStructure)
         }
       });
 
@@ -173,28 +198,23 @@ describe('filesystem', function() {
         var stats = datagen.makeStatObject('dir');
         var original = new fs.File('/a/dir/something', stats);
         var copy = new fs.File(original);
-        expect(copy).to.be.an(fs.File);
-        expect(copy.filename).to.equal('/a/dir/something');
-        expect(copy.basename).to.equal('something');
-        expect(copy.path).to.equal('/a/dir/');
-        expect(copy.is).to.be.an('object');
-        expect(copy.is.file).to.equal(false);
-        expect(copy.is.link).to.equal(false);
-        expect(copy.is.dir).to.equal(true);
-
-        expect(copy == original).to.equal(false);
-        expect(copy.is == original.is).to.equal(false);
-
-        delete original.is.dir;
-        expect(copy.is.dir).to.equal(true);
-
-        delete original.is;
-        expect(copy.is).to.be.an('object');
+        this.testCopy(original, copy);
+      }
+      {
+        var stats = datagen.makeStatObject('dir');
+        var files = [datagen.makeFileObject('/foo/bar', 'dir', [datagen.makeFileObject('/foo/bar/code', 'file')]), datagen.makeFileObject('/foo/bar2', 'link')];
+        var original = new fs.File('/a/dir/something', stats, files);
+        var copy = new fs.File(original);
+        this.testCopy(original, copy);
+        this.testCopy(original.files[0], copy.files[0]);
+        this.testCopy(original.files[0].files[0], copy.files[0].files[0]);
+        this.testCopy(original.files[1], copy.files[1]);
       }
     });
 
     it('should init with files array if present and directory', function() {
       var fs = require(FILE);
+
       {
         var stats = datagen.makeStatObject('file');
         var actual = new fs.File('foo', stats, [true]);
@@ -206,6 +226,114 @@ describe('filesystem', function() {
         var actual = new fs.File('foo', stats, files);
         expect(actual.files).to.equal(files);
       }
+    });
+
+    describe('clone', function() {
+      it('should return a copy of the file', function() {
+        var fs = require(FILE);
+
+        {
+          var stats = datagen.makeStatObject('dir');
+          var original = new fs.File('/a/dir/something', stats);
+          var copy = original.clone();
+          this.testCopy(original, copy);
+        }
+        {
+          var stats = datagen.makeStatObject('dir');
+          var files = [datagen.makeFileObject('/foo/bar', 'dir', [datagen.makeFileObject('/foo/bar/code', 'file')]), datagen.makeFileObject('/foo/bar2', 'link')];
+          var original = new fs.File('/a/dir/something', stats, files);
+          var copy = original.clone();
+          this.testCopy(original, copy);
+          this.testCopy(original.files[0], copy.files[0]);
+          this.testCopy(original.files[0].files[0], copy.files[0].files[0]);
+          this.testCopy(original.files[1], copy.files[1]);
+        }
+      });
+    });
+
+    describe('equals', function() {
+      it('should return true when compared to an equivalent file object', function() {
+        var fs = require(FILE);
+
+        var stats = datagen.makeStatObject('link');
+        var file = new fs.File('/some/dir/~/link', stats);
+
+        {
+          var other = file.clone();
+          expect(file.equals(other)).to.equal(true);
+        }
+        {
+          var other = file.clone();
+          other.filename = '/some/dir/~/';
+          expect(file.equals(other)).to.equal(false);
+        }
+        {
+          var other = file.clone();
+          other.path = 'foo';
+          expect(file.equals(other)).to.equal(false);
+        }
+        {
+          var other = file.clone();
+          other.basename = 'fish';
+          expect(file.equals(other)).to.equal(false);
+        }
+        {
+          var other = file.clone();
+          other.is.dir = true;
+          expect(file.equals(other)).to.equal(false);
+
+          other.is.file = true;
+          expect(file.equals(other)).to.equal(false);
+
+          other.is.link = false;
+          expect(file.equals(other)).to.equal(false);
+        }
+        {
+          //TODO: Should this test case return true of false? And how to handle multi frame environments if checking by instanceof?
+          var other = {
+            filename: file.filename,
+            path: file.path,
+            basename: file.basename,
+            is: file.is
+          };
+          expect(file.equals(other)).to.equal(true);
+        }
+        {
+          var other = file.clone();
+          var files = [datagen.makeFileObject('/foo/bar', 'dir', [datagen.makeFileObject('/foo/bar/code', 'file')]), datagen.makeFileObject('/foo/bar2', 'link')];
+          other.files = [];
+          expect(file.equals(other)).to.equal(true);
+
+          other.files = files;
+          expect(file.equals(other)).to.equal(false);
+
+          var other2 = other.clone();
+          expect(other.equals(other2)).to.equal(true);
+
+          other2.files[0].files = null;
+          expect(other.equals(other2)).to.equal(false);
+        }
+      });
+    });
+
+    describe('flatten', function() {
+      it('should flatten the files array if present', function() {
+        {
+          var file = datagen.makeFileObject('/foo/bar', 'dir');
+          var actual = file.flatten();
+          expect(actual).to.be.an('array');
+          expect(actual).to.have.length(1);
+          expect(file.equals(actual[0])).to.equal(true);
+        }
+        {
+          var files = [datagen.makeFileObject('/foo/bar', 'dir', [datagen.makeFileObject('/foo/bar/code', 'file')]), datagen.makeFileObject('/foo/bar2', 'link')];
+          var file = datagen.makeFileObject('/foo', 'dir', files);
+          var expected = [datagen.makeFileObject('/foo', 'dir'), datagen.makeFileObject('/foo/bar', 'dir'), datagen.makeFileObject('/foo/bar/code', 'file'), datagen.makeFileObject('/foo/bar2', 'link')];
+          var actual = file.flatten();
+
+          datagen.testFileObject(actual, expected);
+        }
+      });
     });
   });
 
@@ -227,12 +355,11 @@ describe('filesystem', function() {
         process.env.HOME + '/test/foo/node_modules dir',
         process.env.HOME + '/test/foo/node_modules/test file'
       ]);
-      this.fs = sm.require(FILE, {
-        requires: {
-          'fs': {
-            readdirSync: fileStructure.readdirSync.bind(fileStructure),
-            lstatSync: fileStructure.lstatSync.bind(fileStructure)
-          }
+      this.fs = rewire(FILE); 
+      this.fs.__set__({
+        fs: {
+          readdirSync: fileStructure.readdirSync.bind(fileStructure),
+          lstatSync: fileStructure.lstatSync.bind(fileStructure)
         }
       });
     });

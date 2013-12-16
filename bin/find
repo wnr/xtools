@@ -1,0 +1,31 @@
+#!/usr/bin/env node
+
+var find = require('../lib/find.js');
+var program = require('commander');
+
+program
+  .version('0.0.0')
+  .usage('[path] [options]')
+  .parse(process.argv);
+
+var path = program.args ? program.args[0] : null;
+
+var files = find(path);
+
+console.log(files);
+
+var output = '';
+
+files.forEach(function (file) {
+  if(file.isDirectory()) {
+    var color = chalk.red;
+  } else if(file.isSymbolicLink()) {
+    var color = chalk.blue;
+  } else {
+    var color = chalk.reset;
+  }
+
+  output += '\n' + color(file.filename);
+});
+
+console.log(output);

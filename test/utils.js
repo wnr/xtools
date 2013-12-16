@@ -1,5 +1,6 @@
 var utils = require('../lib/utils.js');
 var expect = require('expect.js');
+var _ = require('lodash');
 
 describe('utils', function() {
   describe('isSet', function() {
@@ -9,6 +10,48 @@ describe('utils', function() {
       expect(utils.isSet('undefined')).to.be(true);
       expect(utils.isSet(false)).to.be(true);
       expect(utils.isSet(131)).to.be(true);
+    });
+  });
+
+  describe('clone', function() {
+    before(function() {
+      this.object = {
+        arr: [1,2,3],
+        nested: {
+          yes: true,
+          no: false,
+          more: [{hi:1}]
+        },
+        func: function() { return this.nested.yes; }
+      };
+
+      this.objectProto = this.object;
+      this.objectProto.__proto__ = {
+        test: function() {return 1337;},
+        val: 'yep',
+        nested: [{hi:false}]
+      };
+
+      this.arrayObjectProto = [this.objectProto, this.object];
+    });
+
+    it('should clone objects deep', function() {
+      var actual = utils.clone(this.object);
+      expect(_.isEqual(actual, this.object)).to.equal(true);
+    });
+
+    it('should clone objects deep with __proto__', function() {
+      var actual = utils.clone(this.objectProto);
+      expect(_.isEqual(actual, this.objectProto)).to.equal(true);
+      expect(actual.test()).to.equal(1337);
+    });
+
+    it('should clone arrays deep with __proto__', function() {
+      var actual = utils.clone(this.arrayObjectProto);
+      expect(_.isEqual(actual, this.arrayObjectProto)).to.equal(true);
+      expect(_.isEqual(actual[0], this.arrayObjectProto[0])).to.equal(true);
+      expect(_.isEqual(actual[1], this.arrayObjectProto[1])).to.equal(true);
+      expect(actual[0].test()).to.equal(1337);
     });
   });
 
@@ -120,5 +163,68 @@ describe('utils', function() {
         expect(actual).to.eql(expected);
       }
     });
+
+    it('should not alter objects except for index', function() {
+      //TODO: This comparer should be rewritten.
+      var comparer = function (a, b) {
+        if(!_.isArray(a)) {
+          for(var prop in a) {
+            if(a.hasOwnProperty(prop)) {
+              if(b.hasOwnProperty(prop)) {
+                if(_.isFunction(a[prop])) {
+                  if(a[prop]() === b[prop]()) {
+                    return true;
+                  }
+                } else {
+                  return a[prop] === b[prop];
+                }
+              }
+              return false;
+            }
+          }
+        }
+      };
+
+      {
+        var object = {
+          number: 1,
+          func: function() {},
+          more: {
+            number: 2,
+            f: function() {}
+          }
+        };
+
+        var expected = [{number:1, func: function() {}}, {number:2, f:function(){}}];
+        var actual = utils.flatten(object, 'more', 'deep');
+        expect(_.isEqual(actual, expected, comparer)).to.be(true);
+      }
+      {
+        var object = [{
+          number: 1,
+          func: function() {},
+          more: {
+            number: 2,
+            f: function() {}
+          }
+        }];
+
+        var expected = [{number:1, func: function() {}}, {number:2, f:function(){}}];
+        var actual = utils.flatten(object, 'more', 'deep');
+        expect(_.isEqual(actual, expected, comparer)).to.be(true);
+      }
+      {
+        var object = {
+          number: 1,
+          more: {
+            number: 2,
+          }
+        };
+
+        var expected = [{number:1, func: function() {}}, {number:2, f:function(){}}];
+        var actual = utils.flatten(object, 'more', 'deep');
+        expect(_.isEqual(actual, expected, comparer)).to.be(true);
+      }
+    })
   });
 });

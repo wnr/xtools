@@ -2,7 +2,7 @@ var p = require('path');
 var utils = require('../lib/utils.js');
 var _ = require('lodash');
 var expect = require('expect.js');
-var sm = require('sandboxed-module');
+var File = require('../lib/filesystem.js').File;
 
 _.mixin({
   'cloneDeepWithProto': _.partialRight(_.cloneDeep, function (source) {
@@ -130,20 +130,10 @@ function makeStatObject(type) {
   return base;
 }
 
-function makeFileObject(path, file, type, files) {
-  var base = makeStatObject(type);
-
-  if (type === 'dir') {
-    if (files) {
-      base.files = files;
-    }
-  }
-
-  base.path = path;
-  base.file = file;
-  base.filename = path + file;
-
-  return base;
+function makeFileObject(file, type, files) {
+  var stats = makeStatObject(type);
+  var file = new File(file, stats, files);
+  return file;
 }
 
 //TODO: How does there function tests work with new __proto__ functions.
@@ -151,10 +141,9 @@ function testFileObject(actuals, expected) {
   expect(actuals).to.have.length(expected.length);
 
   for (var i = 0; i < actuals.length; i++) {
-    debugger;
-    expect(_.isEqual(actuals[i], expected[i])).to.equal(true);
+    expect(actuals[i].equals(expected[i])).to.equal(true);
 
-    if (expected[i].files) {
+    if (expected[i].files && expected[i].files.length > 0) {
       testFileObject(actuals[i].files, expected[i].files);
     }
   }

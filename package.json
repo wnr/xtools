@@ -8,12 +8,13 @@
   },
   "dependencies": {
     "chalk": "~0.3.0",
-    "lodash": "~2.3.0"
+    "lodash": "~2.4.0"
   },
   "devDependencies": {
     "mocha": "~1.13.0",
-    "sandboxed-module": "~0.3.0",
-    "expect.js": "~0.2.0"
+    "expect.js": "~0.2.0",
+    "commander": "~2.0.0",
+    "rewire": "~2.0.0"
   },
   "scripts": {
     "test": "mocha --reporter spec -r expect.js"
