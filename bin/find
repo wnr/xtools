@@ -2,6 +2,7 @@
 
 var find = require('../lib/find.js');
 var program = require('commander');
+var chalk = require('chalk');
 
 program
   .version('0.0.0')
@@ -12,14 +13,12 @@ var path = program.args ? program.args[0] : null;
 
 var files = find(path);
 
-console.log(files);
-
 var output = '';
 
 files.forEach(function (file) {
-  if(file.isDirectory()) {
+  if(file.is.dir) {
     var color = chalk.red;
-  } else if(file.isSymbolicLink()) {
+  } else if(file.is.link) {
     var color = chalk.blue;
   } else {
     var color = chalk.reset;
